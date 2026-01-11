@@ -1,0 +1,15 @@
+name: k6 Manual
+
+on:
+    workflow_dispatch:
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Run k6
+              uses: grafana/k6-action@v0.3.1
+              with:
+                  filename: main_test.js
