@@ -1,5 +1,6 @@
 import http from "k6/http";
 import { check, sleep, group } from "k6";
+import { randomIntBetween } from "https://jslib.k6.io/k6-utils/1.2.0/index.js";
 
 // Test configuration
 
@@ -9,6 +10,13 @@ export const options = {
   thresholds: {
     http_req_failed: ["rate<0.01"],
     http_req_duration: ["p(95)<500"],
+    'http_req_duration{ name: "01_LoginAction" }': ["p(95)<500"],
+    'http_req_duration{ name: "02_RatingsPageRedirectAfterLogin" }': [
+      "p(95)<200",
+    ],
+    'http_req_duration{ name: "03_HomeWithAuth" }': ["p(95)<200"],
+    'http_req_duration{ name: "04_GetPizzaSuggestion" }': ["p(95)<300"],
+    'http_req_duration{ name: "05_PostRating" }': ["p(95)<200"],
   },
 };
 
@@ -47,13 +55,13 @@ export default function () {
         "Content-Type": "application/json",
         "X-Csrf-Token": csrfToken,
       },
-      tags: { name: "02_LoginAction" },
+      tags: { name: "01_LoginAction" },
     };
 
     const loginRes = http.post(
       `${BASE_URL}/api/users/token/login?set_cookie=true`,
       loginPayload,
-      loginParams
+      loginParams,
     );
 
     // Capture the session token from JSON response
@@ -77,13 +85,13 @@ export default function () {
     console.log(
       `[AUTH] Injected session cookie: qp_user_token=${userToken.substring(
         0,
-        10
-      )}...`
+        10,
+      )}...`,
     );
 
     // Step 4: Verify returned endpoint and response after login
     const ratingsRes = http.get(`${BASE_URL}/api/ratings`, {
-      tags: { name: "03_RatingsPageRedirectAfterLogin" },
+      tags: { name: "02_RatingsPageRedirectAfterLogin" },
     });
 
     check(ratingsRes, {
@@ -91,18 +99,18 @@ export default function () {
         r.status === 200,
     });
 
-    sleep(1);
+    sleep(randomIntBetween(1, 2));
 
     // Step 5: Verify session by hitting the homepage
     const homeRes = http.get(BASE_URL, {
-      tags: { name: "04_HomeWithAuth" },
+      tags: { name: "03_HomeWithAuth" },
     });
 
     check(homeRes, {
       "Home opened as a logged in user - status 200": (r) => r.status === 200,
     });
 
-    sleep(1);
+    sleep(randomIntBetween(1, 2));
   });
 
   // GROUP 2: BUSINESS LOGIC (PIZZA & RATING)
@@ -119,13 +127,13 @@ export default function () {
 
     const pizzaParams = {
       headers: { "Content-Type": "application/json" },
-      tags: { name: "05_GetPizzaSuggestion" },
+      tags: { name: "04_GetPizzaSuggestion" },
     };
 
     const pizzaRes = http.post(
       `${BASE_URL}/api/pizza`,
       JSON.stringify(pizzaSuggestion),
-      pizzaParams
+      pizzaParams,
     );
 
     const pizzaData = pizzaRes.json();
@@ -138,7 +146,7 @@ export default function () {
 
     console.log(`[PIZZA] Suggested: ${pizzaData.pizza.name} (ID: ${pizzaId})`);
 
-    sleep(1);
+    sleep(randomIntBetween(1, 2));
 
     // Step 7: Post a rating for the suggested pizza
     const ratingPayload = JSON.stringify({
@@ -148,13 +156,13 @@ export default function () {
 
     const ratingParams = {
       headers: { "Content-Type": "application/json" },
-      tags: { name: "06_PostRating" },
+      tags: { name: "05_PostRating" },
     };
 
     const ratingRes = http.post(
       `${BASE_URL}/api/ratings`,
       ratingPayload,
-      ratingParams
+      ratingParams,
     );
 
     // Final Validation
@@ -165,12 +173,12 @@ export default function () {
 
     if (!ratingOk) {
       console.error(
-        `[ERROR] Rating failed for Pizza ${pizzaId}. Status: ${ratingRes.status}`
+        `[ERROR] Rating failed for Pizza ${pizzaId}. Status: ${ratingRes.status}`,
       );
     } else {
       console.log(`[FINAL] Successfully rated pizza ${pizzaId} with 5 stars.`);
     }
 
-    sleep(1);
+    sleep(randomIntBetween(1, 2));
   });
 }
