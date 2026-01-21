@@ -1,34 +1,40 @@
 import http from "k6/http";
 import { check, sleep, group } from "k6";
 import { randomIntBetween } from "https://jslib.k6.io/k6-utils/1.2.0/index.js";
+import { randomString } from "https://jslib.k6.io/k6-utils/1.2.0/index.js";
 
 // Test configuration
-
 export const options = {
   vus: 1,
   iterations: 1,
   thresholds: {
     http_req_failed: ["rate<0.01"],
     http_req_duration: ["p(95)<500"],
-    'http_req_duration{ name: "01_LoginAction" }': ["p(95)<500"],
-    'http_req_duration{ name: "02_RatingsPageRedirectAfterLogin" }': [
-      "p(95)<200",
-    ],
-    'http_req_duration{ name: "03_HomeWithAuth" }': ["p(95)<200"],
-    'http_req_duration{ name: "04_GetPizzaSuggestion" }': ["p(95)<300"],
-    'http_req_duration{ name: "05_PostRating" }': ["p(95)<200"],
+    "http_req_duration{name:00_GetCsrfToken}": ["p(95)<200"],
+    "http_req_duration{name:01_RegisterAction}": ["p(95)<200"],
+    "http_req_duration{name:02_LoginAction}": ["p(95)<500"],
+    "http_req_duration{name:03_RatingsAfterLogin}": ["p(95)<200"],
+    "http_req_duration{name:04_HomeWithAuth}": ["p(95)<200"],
+    "http_req_duration{name:05_GetPizzaSuggestion}": ["p(95)<300"],
+    "http_req_duration{name:06_PostRating}": ["p(95)<200"],
   },
 };
 
 const BASE_URL = "https://quickpizza.grafana.com";
+const username = `testuser${randomString(8)}`;
+const password = `testpassword${randomString(8)}`;
 
 export default function () {
   let csrfToken;
 
-  // GROUP 1: AUTHENTICATION FLOW
+  // GROUP 01: AUTH
   group("01_Authentication_Flow", function () {
-    // Step 1: Fetch CSRF token via POST request
-    const csrfRes = http.post(`${BASE_URL}/api/csrf-token`, {});
+    // Step 00: Fetch CSRF token
+    const csrfRes = http.post(
+      `${BASE_URL}/api/csrf-token`,
+      {},
+      { tags: { name: "00_GetCsrfToken" } },
+    );
 
     csrfToken = csrfRes.cookies["csrf_token"]
       ? csrfRes.cookies["csrf_token"][0].value
@@ -43,28 +49,44 @@ export default function () {
       return;
     }
 
-    // Step 2: Login process
-    const loginPayload = JSON.stringify({
-      username: "default",
-      password: "12345678",
-      csrf: csrfToken,
+    // Step 01: Register
+    const userCredentialPayload = JSON.stringify({
+      username: username,
+      password: password,
     });
 
-    const loginParams = {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Csrf-Token": csrfToken,
+    const registerRes = http.post(
+      `${BASE_URL}/api/users`,
+      userCredentialPayload,
+      {
+        headers: { "Content-Type": "application/json" },
+        tags: { name: "01_RegisterAction" },
       },
-      tags: { name: "01_LoginAction" },
-    };
+    );
+
+    check(registerRes, {
+      "Register status is 201": (r) => r.status === 201,
+    });
+
+    // Step 02: Login
+    const loginPayload = JSON.stringify({
+      username: username,
+      password: password,
+      csrf: csrfToken,
+    });
 
     const loginRes = http.post(
       `${BASE_URL}/api/users/token/login?set_cookie=true`,
       loginPayload,
-      loginParams,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Csrf-Token": csrfToken,
+        },
+        tags: { name: "02_LoginAction" },
+      },
     );
 
-    // Capture the session token from JSON response
     const userToken = loginRes.json().token;
 
     check(loginRes, {
@@ -72,7 +94,7 @@ export default function () {
       "User token received": () => userToken !== undefined,
     });
 
-    // Step 3: Inject the user token into the Cookie Jar for stateful requests
+    // Step 03: Inject session cookie
     const jar = http.cookieJar();
     jar.set(BASE_URL, "qp_user_token", userToken, {
       domain: "quickpizza.grafana.com",
@@ -82,40 +104,32 @@ export default function () {
       sameSite: "strict",
     });
 
-    console.log(
-      `[AUTH] Injected session cookie: qp_user_token=${userToken.substring(
-        0,
-        10,
-      )}...`,
-    );
-
-    // Step 4: Verify returned endpoint and response after login
+    // Step 04: Verify ratings after login
     const ratingsRes = http.get(`${BASE_URL}/api/ratings`, {
-      tags: { name: "02_RatingsPageRedirectAfterLogin" },
+      tags: { name: "03_RatingsAfterLogin" },
     });
 
     check(ratingsRes, {
-      "Redirect to ratings page after login has status 200": (r) =>
-        r.status === 200,
+      "Ratings accessible after login": (r) => r.status === 200,
     });
 
     sleep(randomIntBetween(1, 2));
 
-    // Step 5: Verify session by hitting the homepage
+    // Step 05: Verify home page with auth
     const homeRes = http.get(BASE_URL, {
-      tags: { name: "03_HomeWithAuth" },
+      tags: { name: "04_HomeWithAuth" },
     });
 
     check(homeRes, {
-      "Home opened as a logged in user - status 200": (r) => r.status === 200,
+      "Home opened as logged user": (r) => r.status === 200,
     });
 
     sleep(randomIntBetween(1, 2));
   });
 
-  // GROUP 2: BUSINESS LOGIC (PIZZA & RATING)
+  // GROUP 02: BUSINESS
   group("02_Pizza_Selection_and_Rating", function () {
-    // Step 6: Get a pizza suggestion
+    // Step 06: Get pizza suggestion
     const pizzaSuggestion = {
       maxCaloriesPerSlice: 1000,
       mustBeVegetarian: false,
@@ -125,15 +139,13 @@ export default function () {
       minNumberOfToppings: 2,
     };
 
-    const pizzaParams = {
-      headers: { "Content-Type": "application/json" },
-      tags: { name: "04_GetPizzaSuggestion" },
-    };
-
     const pizzaRes = http.post(
       `${BASE_URL}/api/pizza`,
       JSON.stringify(pizzaSuggestion),
-      pizzaParams,
+      {
+        headers: { "Content-Type": "application/json" },
+        tags: { name: "05_GetPizzaSuggestion" },
+      },
     );
 
     const pizzaData = pizzaRes.json();
@@ -141,44 +153,27 @@ export default function () {
 
     check(pizzaRes, {
       "Pizza suggestion status 200": (r) => r.status === 200,
-      "Valid pizza ID received": () => pizzaId !== undefined,
+      "Valid pizza ID": () => pizzaId !== undefined,
     });
-
-    console.log(`[PIZZA] Suggested: ${pizzaData.pizza.name} (ID: ${pizzaId})`);
 
     sleep(randomIntBetween(1, 2));
 
-    // Step 7: Post a rating for the suggested pizza
+    // Step 07: Post rating
     const ratingPayload = JSON.stringify({
       pizza_id: pizzaId,
       stars: 5,
     });
 
-    const ratingParams = {
+    const ratingRes = http.post(`${BASE_URL}/api/ratings`, ratingPayload, {
       headers: { "Content-Type": "application/json" },
-      tags: { name: "05_PostRating" },
-    };
+      tags: { name: "06_PostRating" },
+    });
 
-    const ratingRes = http.post(
-      `${BASE_URL}/api/ratings`,
-      ratingPayload,
-      ratingParams,
-    );
-
-    // Final Validation
-    const ratingOk = check(ratingRes, {
+    check(ratingRes, {
       "Rating status 201": (r) => r.status === 201,
       "Rating response confirmed": (r) => r.body.includes("id"),
     });
-
-    if (!ratingOk) {
-      console.error(
-        `[ERROR] Rating failed for Pizza ${pizzaId}. Status: ${ratingRes.status}`,
-      );
-    } else {
-      console.log(`[FINAL] Successfully rated pizza ${pizzaId} with 5 stars.`);
-    }
-
-    sleep(randomIntBetween(1, 2));
   });
+
+  sleep(randomIntBetween(1, 2));
 }
