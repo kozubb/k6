@@ -21,8 +21,8 @@ export const options = {
 };
 
 const BASE_URL = "https://quickpizza.grafana.com";
-const username = `testuser${randomString(8)}`;
-const password = `testpassword${randomString(8)}`;
+const username = `testuser_${randomString(8)}`;
+const password = `testpassword_${randomString(8)}`;
 
 export default function () {
   let csrfToken;
