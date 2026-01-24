@@ -1,19 +1,22 @@
 name: k6 Manual
 
 on:
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Install k6 (Binary)
-              run: |
-                  curl https://github.com/grafana/k6/releases/download/v0.48.0/k6-v0.48.0-linux-amd64.tar.gz -L | tar -xz
-                  sudo cp ./k6-v0.48.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Install k6 (Binary)
+        run: |
+          curl https://github.com/grafana/k6/releases/download/v0.48.0/k6-v0.48.0-linux-amd64.tar.gz -L | tar -xz
+          sudo cp ./k6-v0.48.0-linux-amd64/k6 /usr/local/bin/k6
 
-            - name: Run k6
-              run: k6 run quickPizza-testScript.js
+      - name: Run k6
+        run: k6 run quickPizza-testScript.js
+
+      - name: Run JSON-based Login Flow
+        run: k6 run loginDataFromJSON.js
