@@ -1,6 +1,6 @@
 {
   "users": [
     { "username": "default", "password": "12345678" },
-    { "username": "testuser_fqzaxpfw", "password": "testpassword_ounhkpka" }
+    { "username": "default", "password": "12345678" }
   ]
 }

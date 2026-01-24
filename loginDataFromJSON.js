@@ -11,7 +11,7 @@ const userCredentials = new SharedArray("users with credentials", function () {
 // Test configuration
 export const options = {
   scenarios: {
-    ten_users_once: {
+    all_users: {
       executor: "per-vu-iterations",
       vus: userCredentials.length,
       iterations: 1,
