@@ -20,3 +20,6 @@ jobs:
 
       - name: Run JSON-based Login Flow test
         run: k6 run loginDataFromJSON.js
+
+      - name: Run product behaviour test
+        run: k6 run productRequestsBehaviour.js
