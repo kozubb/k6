@@ -1,0 +1,5 @@
+import { sleep } from "k6";
+
+export function thinkTime(min = 1, max = 3) {
+  sleep(Math.random() * (max - min) + min);
+}
