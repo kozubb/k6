@@ -12,9 +12,9 @@ export const options = {
 
     http_req_duration: ["p(95)<500"],
 
-    "http_req_duration{name:GetAllCategories}": ["p(95)<2500"],
+    "http_req_duration{name:GetCategories}": ["p(95)<2500"],
 
-    "http_req_duration{name:GetProductsFromCategory}": ["p(95)<2000"],
+    "http_req_duration{name:GetProductsByCategory}": ["p(95)<2000"],
 
     "http_req_duration{name:GetProductById}": ["p(95)<2000"],
 
