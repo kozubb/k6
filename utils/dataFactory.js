@@ -20,3 +20,14 @@ export function createProduct() {
     stock: randomIntBetween(1, 50),
   };
 }
+
+export function addProduct() {
+  return {
+    id: randomIntBetween(20, 40),
+    title: `title-${randomString(6)}`,
+    price: 4.45,
+    description: `description-${randomString(10)}`,
+    category: `category-${randomString(8)}`,
+    image: "http://example.com",
+  };
+}

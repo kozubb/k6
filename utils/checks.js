@@ -44,3 +44,47 @@ export function validateAddedProduct(response, payload) {
     "correct price": (r) => r.json().price === payload.price,
   });
 }
+
+export function validateProducts(response) {
+  check(response, {
+    "products status 200": (r) => r.status === 200,
+
+    "products is array": (r) => Array.isArray(r.json()),
+  });
+}
+
+export function validateProductsById(response) {
+  check(response, {
+    "products by id status 200": (r) => r.status === 200,
+  });
+}
+
+export function validateAddNewProduct(response, payload) {
+  check(response, {
+    "product created": (r) => r.status === 201,
+
+    "correct id": (r) => typeof r.json().id === "number",
+
+    "correct title": (r) => r.json().title === payload.title,
+
+    "correct category": (r) => r.json().category === payload.category,
+
+    "correct price": (r) => r.json().price === payload.price,
+
+    "correct description": (r) => r.json().description === payload.description,
+  });
+}
+
+export function validateUpdateProduct(response, payload) {
+  check(response, {
+    "product created": (r) => r.status === 200,
+
+    "correct price": (r) => r.json().price === payload.price,
+  });
+}
+
+export function validateDeleteProduct(response) {
+  check(response, {
+    "product created": (r) => r.status === 200,
+  });
+}

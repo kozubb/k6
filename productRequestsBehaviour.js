@@ -1,9 +1,9 @@
 import { group } from "k6";
 
-import { options } from "./config/options.js";
+import { options } from "./config/productConfig/options.js";
 export { options };
 
-import { CONFIG } from "./config/config.js";
+import { CONFIG } from "./config/productConfig/config.js";
 
 import {
   getCategories,

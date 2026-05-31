@@ -1,4 +1,4 @@
-import { CONFIG } from "../config/config.js";
+import { CONFIG } from "../config/productConfig/config.js";
 import { get, post } from "../utils/http.js";
 
 export function getCategories() {
